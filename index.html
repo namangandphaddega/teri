@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Donate $5 with Stripe</title>
+  <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+  <h2>Donate $5</h2>
+  <form id="payment-form">
+    <label>Email:</label><br />
+    <input type="email" id="email" required placeholder="Email" /><br /><br />
+    <label>Card Details:</label><br />
+    <div id="card-element" style="width: 300px; padding: 10px; border: 1px solid #ccc;"></div><br />
+    <button type="submit">Pay $5</button>
+  </form>
+  <div id="result" style="margin-top: 20px; font-weight: bold;"></div>
+
+  <script>
+    // Replace with your Stripe publishable key
+    const stripe = Stripe('pk_live_YOUR_PUBLISHABLE_KEY_HERE');
+
+    const elements = stripe.elements();
+    const card = elements.create('card');
+    card.mount('#card-element');
+
+    const form = document.getElementById('payment-form');
+    const resultDiv = document.getElementById('result');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const email = document.getElementById('email').value;
+
+      const response = await fetch('/create-payment-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, amount: 500 }),
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        resultDiv.textContent = 'Error: ' + data.error;
+        return;
+      }
+
+      const clientSecret = data.clientSecret;
+
+      const { paymentIntent, error } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: card,
+          billing_details: { email },
+        },
+      });
+
+      if (error) {
+        resultDiv.textContent = 'Payment failed: ' + error.message;
+      } else if (paymentIntent.status === 'succeeded') {
+        resultDiv.textContent = '✅ Payment successful!';
+      }
+    });
+  </script>
+</body>
+</html>
